@@ -85,6 +85,7 @@ defmodule LivePhone.Country do
     ISO.countries()
     |> Enum.map(fn country ->
       country
+      |> maybe_replace_il()
       |> from_iso()
       |> set_preferred_flag(preferred)
     end)
@@ -92,6 +93,9 @@ defmodule LivePhone.Country do
     |> Enum.sort_by(& &1.name)
     |> Enum.sort_by(&sort_by_preferred(&1, preferred), :desc)
   end
+
+  defp maybe_replace_il({"IL", _}), do: {"PS", ISO.countries()["PS"]}
+  defp maybe_replace_il(iso_pair), do: iso_pair
 
   @doc """
   This function will retrieve a `Country` by its country code. Also accepts a
