@@ -44,6 +44,24 @@ defmodule LivePhone.Country do
 
   """
   @spec from_iso({String.t(), %{String.t() => String.t()}}) :: t()
+  def from_iso({"PS", _}) do
+    %__MODULE__{
+      region_code: find_region_code("PS"),
+      flag_emoji: LivePhone.Util.emoji_for_country("PS"),
+      code: "PS",
+      name: "Palestine"
+    }
+  end
+
+  def from_iso({"IL", %{}}) do
+    %__MODULE__{
+      region_code: find_region_code("IL"),
+      flag_emoji: LivePhone.Util.emoji_for_country("PS"),
+      code: "IL",
+      name: "Palestine"
+    }
+  end
+
   def from_iso({country_code, %{"name" => name}}) do
     %__MODULE__{
       region_code: find_region_code(country_code),
@@ -80,12 +98,14 @@ defmodule LivePhone.Country do
   """
   @spec list([String.t()]) :: [t()]
   def list(preferred \\ []) when is_list(preferred) do
-    preferred = preferred |> Enum.uniq() |> Enum.with_index()
+    preferred =
+      if("PS" in preferred, do: preferred ++ ["IL"], else: preferred)
+      |> Enum.uniq()
+      |> Enum.with_index()
 
     ISO.countries()
     |> Enum.map(fn country ->
       country
-      |> maybe_replace_il()
       |> from_iso()
       |> set_preferred_flag(preferred)
     end)
@@ -93,9 +113,6 @@ defmodule LivePhone.Country do
     |> Enum.sort_by(& &1.name)
     |> Enum.sort_by(&sort_by_preferred(&1, preferred), :desc)
   end
-
-  defp maybe_replace_il({"IL", _}), do: {"PS", ISO.countries()["PS"]}
-  defp maybe_replace_il(iso_pair), do: iso_pair
 
   @doc """
   This function will retrieve a `Country` by its country code. Also accepts a

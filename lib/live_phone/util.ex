@@ -123,6 +123,10 @@ defmodule LivePhone.Util do
   @spec emoji_for_country(String.t() | nil) :: String.t()
   def emoji_for_country(nil), do: ""
 
+  def emoji_for_country("IL") do
+    emoji_for_country("PS")
+  end
+
   def emoji_for_country(country_code) do
     country_code
     |> String.upcase()
