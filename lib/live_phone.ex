@@ -19,7 +19,8 @@ defmodule LivePhone do
      |> assign_new(:apply_format?, fn -> false end)
      |> assign_new(:value, fn -> "" end)
      |> assign_new(:opened?, fn -> false end)
-     |> assign_new(:valid?, fn -> false end)}
+     |> assign_new(:valid?, fn -> false end)
+     |> assign_new(:validate?, fn -> false end)}
   end
 
   @impl true
@@ -39,8 +40,13 @@ defmodule LivePhone do
       |> assign(assigns)
       |> assign_country(current_country)
       |> assign(:masks, masks)
+      |> assign(:validate?, true)
 
-    {:ok, set_value(socket, socket.assigns.value)}
+    if assigns[:validate?] do
+      {:ok, set_value(socket, socket.assigns.value)}
+    else
+      {:ok, socket}
+    end
   end
 
   @impl true
