@@ -20,7 +20,8 @@ defmodule LivePhone do
      |> assign_new(:value, fn -> "" end)
      |> assign_new(:opened?, fn -> false end)
      |> assign_new(:valid?, fn -> false end)
-     |> assign_new(:validate?, fn -> false end)}
+     |> assign_new(:validate?, fn -> false end)
+     |> assign_new(:get_name_fn, fn -> & &1.name end)}
   end
 
   @impl true
@@ -85,7 +86,7 @@ defmodule LivePhone do
       ) %>
 
       <%= if @opened? do %>
-        <.country_list country={@country} preferred={@preferred} id={@id} target={@myself} />
+        <.country_list country={@country} preferred={@preferred} get_name_fn={@get_name_fn} id={@id} target={@myself} />
       <% end %>
     </div>
     """
@@ -289,7 +290,7 @@ defmodule LivePhone do
     ~H"""
     <ul class="live_phone-country-list" id={"live_phone-country-list-#{@id}"} role="listbox">
       <%= for country <- @countries do %>
-        <.country_list_item country={country} current_country={@country} target={@target} />
+        <.country_list_item country={country} current_country={@country} get_name_fn={@get_name_fn} target={@target} />
 
         <%= if country == @last_preferred do %>
           <li aria-disabled="true" class="live_phone-country-separator" role="separator"></li>
@@ -319,7 +320,7 @@ defmodule LivePhone do
       role="option"
     >
       <span class="live_phone-country-item-flag"><%= @country.flag_emoji %></span>
-      <span class="live_phone-country-item-name"><%= @country.name %></span>
+      <span class="live_phone-country-item-name"><%= @get_name_fn.(@country) %></span>
       <span class="live_phone-country-item-code">+<%= @country.region_code %></span>
     </li>
     """
