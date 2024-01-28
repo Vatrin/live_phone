@@ -92,32 +92,35 @@ defmodule LivePhone do
 
   @spec set_value(Socket.t(), String.t(), list()) :: Socket.t()
   def set_value(socket, value, opts \\ []) do
-    value =
+    {country, value} =
       case value do
         empty when is_empty(empty) and not socket.assigns.dirty? ->
           case socket.assigns do
             %{form: form, field: field} when not is_nil(form) and not is_nil(field) ->
-              input_value(form, field)
+              value = input_value(form, field)
+
+              {get_country_code(value) || socket.assigns[:country], value || ""}
 
             %{value: assigns_value} when not is_nil(assigns_value) ->
-              value
+              {socket.assigns[:country], value || ""}
 
             _ ->
-              value
+              {socket.assigns[:country], value || ""}
           end
 
         found_value ->
-          found_value
-      end || ""
+              {socket.assigns[:country], found_value || ""}
+      end
 
-    {_, formatted_value} = Util.normalize(value, socket.assigns[:country])
-    value = apply_mask(value, socket.assigns[:country])
+    {_, formatted_value} = Util.normalize(value, country)
+    value = apply_mask(value, country)
     valid? = Util.valid?(formatted_value)
 
     push? = (socket.assigns[:formatted_value] || "") != formatted_value && !Keyword.get(opts, :only_value?, false)
 
     socket
     |> assign(:valid?, valid?)
+    |> assign(:country, country)
     |> assign(:value, value)
     |> assign(:dirty?, socket.assigns.dirty? || (socket.assigns[:formatted_value] || "") != formatted_value)
     |> then(fn socket ->
@@ -137,6 +140,13 @@ defmodule LivePhone do
         socket
       end
     end)
+  end
+
+  defp get_country_code(value) do
+    case Util.get_country(value) do
+      {:ok, %{code: code}} -> code
+      _ -> nil
+    end
   end
 
   defp apply_mask(value, _country) when is_empty(value), do: value
