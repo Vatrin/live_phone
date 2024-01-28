@@ -20,9 +20,9 @@ defmodule LivePhone do
      |> assign_new(:value, fn -> "" end)
      |> assign_new(:opened?, fn -> false end)
      |> assign_new(:valid?, fn -> false end)
-     |> assign_new(:validate?, fn -> false end)
      |> assign_new(:get_name_fn, fn -> & &1.name end)
-     |> assign_new(:debounce_on_blur?, fn -> false end)}
+     |> assign_new(:debounce_on_blur?, fn -> false end)
+     |> assign_new(:dirty?, fn -> false end)}
   end
 
   @impl true
@@ -42,13 +42,8 @@ defmodule LivePhone do
       |> assign(assigns)
       |> assign_country(current_country)
       |> assign(:masks, masks)
-      |> assign(:validate?, true)
 
-    if assigns[:validate?] do
-      {:ok, set_value(socket, socket.assigns.value)}
-    else
-      {:ok, socket}
-    end
+    {:ok, set_value(socket, socket.assigns.value)}
   end
 
   @impl true
@@ -77,7 +72,6 @@ defmodule LivePhone do
         phx-target={@myself}
         phx-keyup="typing"
         phx-blur="close"
-        phx-debounce={(@debounce_on_blur? && "blur") || nil}
       />
 
       <%= hidden_input(
@@ -96,11 +90,11 @@ defmodule LivePhone do
 
   defguardp is_empty(value) when is_nil(value) or value == ""
 
-  @spec set_value(Socket.t(), String.t()) :: Socket.t()
-  def set_value(socket, value) do
+  @spec set_value(Socket.t(), String.t(), list()) :: Socket.t()
+  def set_value(socket, value, opts \\ []) do
     value =
       case value do
-        empty when is_empty(empty) ->
+        empty when is_empty(empty) and not socket.assigns.dirty? ->
           case socket.assigns do
             %{form: form, field: field} when not is_nil(form) and not is_nil(field) ->
               input_value(form, field)
@@ -117,15 +111,22 @@ defmodule LivePhone do
       end || ""
 
     {_, formatted_value} = Util.normalize(value, socket.assigns[:country])
-    # value = apply_mask(value, socket.assigns[:country])
+    value = apply_mask(value, socket.assigns[:country])
     valid? = Util.valid?(formatted_value)
 
-    push? = socket.assigns[:formatted_value] != formatted_value
+    push? = (socket.assigns[:formatted_value] || "") != formatted_value && !Keyword.get(opts, :only_value?, false)
 
     socket
     |> assign(:valid?, valid?)
     |> assign(:value, value)
-    |> assign(:formatted_value, formatted_value)
+    |> assign(:dirty?, socket.assigns.dirty? || (socket.assigns[:formatted_value] || "") != formatted_value)
+    |> then(fn socket ->
+      if Keyword.get(opts, :only_value?, false) do
+        socket
+      else
+        socket |> assign(:formatted_value, formatted_value)
+      end
+    end)
     |> then(fn socket ->
       if push? do
         push_event(socket, "change", %{
@@ -138,26 +139,23 @@ defmodule LivePhone do
     end)
   end
 
-  # defp apply_mask(value, _country) when is_empty(value), do: value
+  defp apply_mask(value, _country) when is_empty(value), do: value
 
-  # defp apply_mask(value, country) do
-  #   case ExPhoneNumber.parse(value, country) do
-  #     {:ok, phone_number} ->
-  #       metadata = ExPhoneNumber.Metadata.get_for_region_code(country)
+  defp apply_mask(value, country) do
+    case ExPhoneNumber.parse(value, country) do
+      {:ok, phone_number} ->
+        ExPhoneNumber.Model.PhoneNumber.get_national_significant_number(phone_number)
 
-  #       national_significant_number =
-  #         ExPhoneNumber.Model.PhoneNumber.get_national_significant_number(phone_number)
-
-  #       ExPhoneNumber.Formatting.format_nsn(national_significant_number, metadata, :international)
-
-  #     _ ->
-  #       ""
-  #   end
-  # end
+      _ ->
+        ""
+    end
+  end
 
   @impl true
   def handle_event("typing", %{"value" => value}, socket) do
-    {:noreply, set_value(socket, value)}
+    only_value? = socket.assigns.debounce_on_blur? || false
+
+    {:noreply, set_value(socket, value, only_value?: only_value?)}
   end
 
   def handle_event("select_country", %{"country" => country}, socket) do
