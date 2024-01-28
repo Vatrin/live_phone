@@ -115,7 +115,7 @@ defmodule LivePhone do
       end || ""
 
     {_, formatted_value} = Util.normalize(value, socket.assigns[:country])
-    value = apply_mask(value, socket.assigns[:country])
+    # value = apply_mask(value, socket.assigns[:country])
     valid? = Util.valid?(formatted_value)
 
     push? = socket.assigns[:formatted_value] != formatted_value
@@ -136,22 +136,22 @@ defmodule LivePhone do
     end)
   end
 
-  defp apply_mask(value, _country) when is_empty(value), do: value
+  # defp apply_mask(value, _country) when is_empty(value), do: value
 
-  defp apply_mask(value, country) do
-    case ExPhoneNumber.parse(value, country) do
-      {:ok, phone_number} ->
-        metadata = ExPhoneNumber.Metadata.get_for_region_code(country)
+  # defp apply_mask(value, country) do
+  #   case ExPhoneNumber.parse(value, country) do
+  #     {:ok, phone_number} ->
+  #       metadata = ExPhoneNumber.Metadata.get_for_region_code(country)
 
-        national_significant_number =
-          ExPhoneNumber.Model.PhoneNumber.get_national_significant_number(phone_number)
+  #       national_significant_number =
+  #         ExPhoneNumber.Model.PhoneNumber.get_national_significant_number(phone_number)
 
-        ExPhoneNumber.Formatting.format_nsn(national_significant_number, metadata, :international)
+  #       ExPhoneNumber.Formatting.format_nsn(national_significant_number, metadata, :international)
 
-      _ ->
-        ""
-    end
-  end
+  #     _ ->
+  #       ""
+  #   end
+  # end
 
   @impl true
   def handle_event("typing", %{"value" => value}, socket) do
@@ -168,13 +168,20 @@ defmodule LivePhone do
         get_placeholder(country)
       end
 
-    {:noreply,
-     socket
-     |> assign_country(country)
-     |> assign(:valid?, valid?)
-     |> assign(:opened?, false)
-     |> assign(:placeholder, placeholder)
-     |> push_event("focus", %{id: "live_phone-#{socket.assigns.id}"})}
+    socket =
+      socket
+      |> assign_country(country)
+      |> assign(:valid?, valid?)
+      |> assign(:opened?, false)
+      |> assign(:placeholder, placeholder)
+      |> push_event("focus", %{id: "live_phone-#{socket.assigns.id}"})
+
+    value = socket.assigns.value
+    if value && value != "" do
+      {:noreply, set_value(socket, value)}
+    else
+      {:noreply, socket}
+    end
   end
 
   def handle_event("toggle", _, socket) do
