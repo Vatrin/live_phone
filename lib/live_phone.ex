@@ -21,7 +21,8 @@ defmodule LivePhone do
      |> assign_new(:opened?, fn -> false end)
      |> assign_new(:valid?, fn -> false end)
      |> assign_new(:validate?, fn -> false end)
-     |> assign_new(:get_name_fn, fn -> & &1.name end)}
+     |> assign_new(:get_name_fn, fn -> & &1.name end)
+     |> assign_new(:debounce_on_blur?, fn -> false end)}
   end
 
   @impl true
@@ -76,6 +77,7 @@ defmodule LivePhone do
         phx-target={@myself}
         phx-keyup="typing"
         phx-blur="close"
+        phx-debounce={(@debounce_on_blur? && "blur") || nil}
       />
 
       <%= hidden_input(
@@ -188,7 +190,13 @@ defmodule LivePhone do
     {:noreply, assign(socket, :opened?, socket.assigns.opened? != true)}
   end
 
-  def handle_event("close", _, socket) do
+  def handle_event("close", params, socket) do
+    socket = if socket.assigns.debounce_on_blur? && params["value"] do
+      set_value(socket, params["value"])
+    else
+      socket
+    end
+
     {:noreply, assign(socket, :opened?, false)}
   end
 
