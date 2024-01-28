@@ -258,8 +258,8 @@ class LivePhone {
     // We don't want to partial match on the input field value
     if (e.target == "INPUT") return
 
-    // Ignore anything that is not a-zA-Z
-    if (!e.key.match(/^[a-z]$/i)) return
+    // Ignore anything that is not a letter
+    if (!e.key.match(/^\p{L}$/u)) return
 
     // Let's get a list of all known country list item names
     const items = Array.from(this.elements.countryListItemNames())
