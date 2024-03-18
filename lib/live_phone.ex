@@ -360,7 +360,6 @@ defmodule LivePhone do
 
   defp filter_countries(countries, term, get_name_fn) do
     term = term |> String.downcase() |> String.replace_prefix("+", "")
-    IO.inspect(hd(countries))
 
     Enum.filter(countries, fn country ->
       String.contains?(String.downcase(country.name), term) ||
