@@ -22,7 +22,8 @@ defmodule LivePhone do
      |> assign_new(:valid?, fn -> false end)
      |> assign_new(:get_name_fn, fn -> & &1.name end)
      |> assign_new(:debounce_on_blur?, fn -> false end)
-     |> assign_new(:dirty?, fn -> false end)}
+     |> assign_new(:dirty?, fn -> false end)
+     |> assign_new(:country_search_term, fn -> "" end)}
   end
 
   @impl true
@@ -82,7 +83,14 @@ defmodule LivePhone do
       ) %>
 
       <%= if @opened? do %>
-        <.country_list country={@country} preferred={@preferred} get_name_fn={@get_name_fn} id={@id} target={@myself} />
+        <.country_list
+          country={@country}
+          country_search_placeholder={assigns[:country_search_placeholder]}
+          country_search_term={assigns[:country_search_term]}
+          preferred={@preferred}
+          get_name_fn={@get_name_fn}
+          id={@id}
+          target={@myself} />
       <% end %>
     </div>
     """
@@ -195,7 +203,16 @@ defmodule LivePhone do
   end
 
   def handle_event("toggle", _, socket) do
-    {:noreply, assign(socket, :opened?, socket.assigns.opened? != true)}
+    {:noreply,
+     socket
+     |> assign(:opened?, socket.assigns.opened? != true)
+     |> then(fn socket ->
+       if socket.assigns.opened? != true do
+         socket
+       else
+         push_event(socket, "countrysearchfocus", %{})
+       end
+     end)}
   end
 
   def handle_event("close", params, socket) do
@@ -206,6 +223,10 @@ defmodule LivePhone do
     end
 
     {:noreply, assign(socket, :opened?, false)}
+  end
+
+  def handle_event("search-country", %{"value" => value}, socket) do
+    {:noreply, assign(socket, :country_search_term, value)}
   end
 
   @spec get_placeholder(String.t()) :: String.t()
@@ -312,7 +333,18 @@ defmodule LivePhone do
 
     ~H"""
     <ul class="live_phone-country-list" id={"live_phone-country-list-#{@id}"} role="listbox">
-      <%= for country <- @countries do %>
+      <input
+        id={"live_phone-country-search-#{@id}"}
+        type="text"
+        class="live_phone-country-search-input"
+        value={assigns[:country_search_term]}
+        placeholder={assigns[:country_search_placeholder]}
+        phx-target={@target}
+        phx-keyup="search-country"
+        autocomplete="off"
+      />
+
+      <%= for country <- filter_countries(@countries, assigns[:country_search_term], @get_name_fn) do %>
         <.country_list_item country={country} current_country={@country} get_name_fn={@get_name_fn} target={@target} />
 
         <%= if country == @last_preferred do %>
@@ -321,6 +353,21 @@ defmodule LivePhone do
       <% end %>
     </ul>
     """
+  end
+
+  defp filter_countries(countries, nil, _), do: countries
+  defp filter_countries(countries, "", _), do: countries
+
+  defp filter_countries(countries, term, get_name_fn) do
+    term = term |> String.downcase() |> String.replace_prefix("+", "")
+    IO.inspect(hd(countries))
+
+    Enum.filter(countries, fn country ->
+      String.contains?(String.downcase(country.name), term) ||
+        String.contains?(String.downcase(country.code), term) ||
+        String.contains?(String.downcase(country.region_code), term) ||
+        String.contains?(String.downcase(get_name_fn.(country)), term)
+    end)
   end
 
   defp country_list_item(assigns) do

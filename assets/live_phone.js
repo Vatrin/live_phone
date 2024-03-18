@@ -32,6 +32,7 @@ class LivePhone {
       textField: () => context.el.querySelector('input[type="tel"]'),
       hiddenField: () => context.el.querySelector('input[type="hidden"]'),
       countrySelector: () => context.el.querySelector('.live_phone-country'),
+      countrySearchField: () => context.el.querySelector('.live_phone-country-search-input'),
       countryList: () => context.el.querySelector('.live_phone-country-list'),
       countryListItems: () => context.el.querySelectorAll('.live_phone-country-item'),
       countryListItemNames: () => context.el.querySelectorAll('.live_phone-country-item-name'),
@@ -85,6 +86,16 @@ class LivePhone {
     if (id !== this.context.el.id) return
 
     this.elements.textField().focus()
+  }
+
+  // Move the focus to our (visible) country search field
+  setCountrySearchFocus() {
+    this.elements.countrySearchField().focus()
+  }
+
+  // Move the focus to our (visible) country search field
+  setCountrySearchBlur() {
+    this.elements.countrySearchField().blur()
   }
 
   // This has to happen because the `phx-change` event was not
@@ -306,6 +317,10 @@ class LivePhone {
     // The "focus" event should set focus to the text field
     this.setFocus = this.setFocus.bind(this)
     this.context.handleEvent("focus", this.setFocus)
+
+    // The "countrysearchfocus" event should set focus to the country search field
+    this.setCountrySearchFocus = this.setCountrySearchFocus.bind(this)
+    this.context.handleEvent("countrysearchfocus", this.setCountrySearchFocus)
 
     // The "change" event should trigger dispatch on the hidden input
     this.setChange = this.setChange.bind(this)
