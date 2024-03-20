@@ -117,10 +117,11 @@ defmodule LivePhone do
           end
 
         found_value ->
-              {socket.assigns[:country], found_value || ""}
+          {socket.assigns[:country], found_value || ""}
       end
 
     {_, formatted_value} = Util.normalize(value, country)
+    country = get_country_code(formatted_value) || country
     value = apply_mask(value, country)
     valid? = Util.valid?(formatted_value)
 
