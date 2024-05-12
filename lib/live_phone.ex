@@ -23,8 +23,11 @@ defmodule LivePhone do
      |> assign_new(:get_name_fn, fn -> & &1.name end)
      |> assign_new(:debounce_on_blur?, fn -> false end)
      |> assign_new(:dirty?, fn -> false end)
+     |> assign_new(:initialized?, fn -> false end)
      |> assign_new(:country_search_term, fn -> "" end)}
   end
+
+  defguardp is_empty(value) when is_nil(value) or value == ""
 
   @impl true
   def update(assigns, socket) do
@@ -39,8 +42,17 @@ defmodule LivePhone do
       end
 
     socket =
-      socket
-      |> assign(assigns)
+      if not is_empty(assigns[:value]) and assigns[:value] != socket.assigns[:value] do
+        # If the value is not empty and different from the current value
+        # this means the value was changed by the parent component (e.g. a form reset)
+        # in other words, the value was reinitialized
+        socket
+        |> assign(assigns)
+        |> assign(:dirty?, false)
+        |> assign(:initialized?, false)
+      else
+        assign(socket, Map.delete(assigns, :value))
+      end
       |> assign_country(current_country)
       |> assign(:masks, masks)
 
@@ -90,27 +102,23 @@ defmodule LivePhone do
           preferred={@preferred}
           get_name_fn={@get_name_fn}
           id={@id}
-          target={@myself} />
+          target={@myself}
+        />
       <% end %>
     </div>
     """
   end
 
-  defguardp is_empty(value) when is_nil(value) or value == ""
-
   @spec set_value(Socket.t(), String.t(), list()) :: Socket.t()
   def set_value(socket, value, opts \\ []) do
     {country, value} =
-      case value do
+      case clean_phone_value(value) do
         empty when is_empty(empty) and not socket.assigns.dirty? ->
           case socket.assigns do
             %{form: form, field: field} when not is_nil(form) and not is_nil(field) ->
               value = input_value(form, field)
 
               {get_country_code(value) || socket.assigns[:country], value || ""}
-
-            %{value: assigns_value} when not is_nil(assigns_value) ->
-              {socket.assigns[:country], value || ""}
 
             _ ->
               {socket.assigns[:country], value || ""}
@@ -125,13 +133,21 @@ defmodule LivePhone do
     value = apply_mask(value, country)
     valid? = Util.valid?(formatted_value)
 
-    push? = (socket.assigns[:formatted_value] || "") != formatted_value && !Keyword.get(opts, :only_value?, false)
+    push? =
+      (socket.assigns[:formatted_value] || "") != formatted_value && socket.assigns.initialized? &&
+        !Keyword.get(opts, :only_value?, false)
 
     socket
     |> assign(:valid?, valid?)
     |> assign(:country, country)
     |> assign(:value, value)
-    |> assign(:dirty?, socket.assigns.dirty? || (socket.assigns[:formatted_value] || "") != formatted_value)
+    |> assign(
+      :dirty?,
+      socket.assigns.dirty? ||
+        ((socket.assigns[:formatted_value] || "") != formatted_value &&
+           socket.assigns.initialized?)
+    )
+    |> assign(:initialized?, true)
     |> then(fn socket ->
       if Keyword.get(opts, :only_value?, false) do
         socket
@@ -149,6 +165,14 @@ defmodule LivePhone do
         socket
       end
     end)
+  end
+
+  defp clean_phone_value(value) do
+    # Match any character that is not a digit, space, parentheses, hyphen, or the plus sign,
+    # or match a plus sign not at the start of the string
+    regex = ~r/[^0-9\s()\-٠١٢٣٤٥٦٧٨٩+]|(?<!^)\+/
+
+    String.replace(value, regex, "")
   end
 
   defp get_country_code(value) do
@@ -196,6 +220,7 @@ defmodule LivePhone do
       |> push_event("focus", %{id: "live_phone-#{socket.assigns.id}"})
 
     value = socket.assigns.value
+
     if value && value != "" do
       {:noreply, set_value(socket, value)}
     else
@@ -217,11 +242,12 @@ defmodule LivePhone do
   end
 
   def handle_event("close", params, socket) do
-    socket = if socket.assigns.debounce_on_blur? && params["value"] do
-      set_value(socket, params["value"])
-    else
-      socket
-    end
+    socket =
+      if socket.assigns.debounce_on_blur? && params["value"] do
+        set_value(socket, params["value"])
+      else
+        socket
+      end
 
     {:noreply, assign(socket, :opened?, false)}
   end
@@ -346,7 +372,12 @@ defmodule LivePhone do
       />
 
       <%= for country <- filter_countries(@countries, assigns[:country_search_term], @get_name_fn) do %>
-        <.country_list_item country={country} current_country={@country} get_name_fn={@get_name_fn} target={@target} />
+        <.country_list_item
+          country={country}
+          current_country={@country}
+          get_name_fn={@get_name_fn}
+          target={@target}
+        />
 
         <%= if country == @last_preferred do %>
           <li aria-disabled="true" class="live_phone-country-separator" role="separator"></li>
