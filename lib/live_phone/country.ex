@@ -149,6 +149,15 @@ defmodule LivePhone.Country do
     end
   end
 
+  def get_by_region_code(region_code) do
+    list()
+    |> Enum.find(&(&1.region_code == to_string(region_code)))
+    |> case do
+      nil -> {:error, :not_found}
+      country -> {:ok, country}
+    end
+  end
+
   @spec set_preferred_flag(t(), list(String.t())) :: t()
   defp set_preferred_flag(%__MODULE__{} = country, preferred) do
     preferred

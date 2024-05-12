@@ -67,13 +67,27 @@ defmodule LivePhone.Util do
 
   """
   @spec get_country(String.t()) :: {:ok, Country.t()} | {:error, :invalid_number}
+  def get_country(phone) when phone in [nil, ""], do: {:error, :invalid_number}
+
   def get_country(phone) do
     with {:ok, parsed_phone} <- ExPhoneNumber.parse(phone, nil),
          true <- ExPhoneNumber.is_valid_number?(parsed_phone),
          {:ok, country} <- Country.get(parsed_phone) do
       {:ok, country}
     else
-      _ -> {:error, :invalid_number}
+      # If number was parsed and is valid, but country was not found
+      {:error, :not_found} ->
+        {:error, :invalid_number}
+
+      # Else, we might be able to find the country if only the country code is provided
+      _ ->
+        phone
+        |> String.replace("+", "")
+        |> Country.get_by_region_code()
+        |> case do
+          {:ok, country} -> {:ok, country}
+          _ -> {:error, :invalid_number}
+        end
     end
   end
 
