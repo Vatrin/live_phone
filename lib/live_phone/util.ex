@@ -81,15 +81,18 @@ defmodule LivePhone.Util do
 
       # Else, we might be able to find the country if only the country code is provided
       _ ->
-        phone
-        |> String.replace("+", "")
-        |> Country.get_by_region_code()
-        |> case do
-          {:ok, country} -> {:ok, country}
-          _ -> {:error, :invalid_number}
-        end
+        maybe_get_country_from_invalid_number(phone)
     end
   end
+
+  defp maybe_get_country_from_invalid_number("+" <> phone) do
+    case Country.get_by_region_code(phone) do
+      {:ok, country} -> {:ok, country}
+      _ -> {:error, :invalid_number}
+    end
+  end
+
+  defp maybe_get_country_from_invalid_number(_), do: {:error, :invalid_number}
 
   @doc ~S"""
   This is used to normalize a given `phone` number to E.164 format, and returns
