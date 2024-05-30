@@ -170,9 +170,11 @@ defmodule LivePhone do
   defp clean_phone_value(value) do
     # Match any character that is not a digit, space, parentheses, hyphen, or the plus sign,
     # or match a plus sign not at the start of the string
-    regex = ~r/[^0-9\s()\-٠١٢٣٤٥٦٧٨٩+]|(?<!^)\+/
+    regex = ~r/[^0-9\s()\-+]|(?<!^)\+/
 
-    String.replace(value, regex, "")
+    value
+    |> Numero.normalize()
+    |> String.replace(regex, "")
   end
 
   defp get_country_code(value) do

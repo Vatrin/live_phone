@@ -61,6 +61,7 @@ defmodule LivePhone.MixProject do
       {:ex_phone_number, ">= 0.0.0"},
       {:jason, ">= 0.0.0"},
       {:iso, ">= 0.0.0"},
+      {:numero, "~> 0.3.0"},
 
       # Test/dev deps
       {:phoenix_ecto, "~> 4.0", only: :test},
