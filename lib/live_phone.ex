@@ -5,7 +5,8 @@ defmodule LivePhone do
   """
 
   use Phoenix.LiveComponent
-  use Phoenix.HTML
+  import Phoenix.HTML.Form
+  use PhoenixHTMLHelpers
 
   alias Phoenix.LiveView.Socket
   alias LivePhone.{Country, Util}
@@ -312,6 +313,7 @@ defmodule LivePhone do
 
     # And make sure we only have unique ones
     |> Enum.uniq()
+    |> Enum.sort()
   end
 
   @spec assign_country(Socket.t(), Country.t() | String.t()) :: Socket.t()
