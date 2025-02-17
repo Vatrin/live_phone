@@ -5,8 +5,9 @@ defmodule LivePhone do
   """
 
   use Phoenix.LiveComponent
-  import Phoenix.HTML.Form
   use PhoenixHTMLHelpers
+
+  import Phoenix.HTML.Form
 
   alias Phoenix.LiveView.Socket
   alias LivePhone.{Country, Util}
@@ -25,7 +26,8 @@ defmodule LivePhone do
      |> assign_new(:debounce_on_blur?, fn -> false end)
      |> assign_new(:dirty?, fn -> false end)
      |> assign_new(:initialized?, fn -> false end)
-     |> assign_new(:country_search_term, fn -> "" end)}
+     |> assign_new(:country_search_term, fn -> "" end)
+     |> assign_new(:allowed_countries, fn -> nil end)}
   end
 
   defguardp is_empty(value) when is_nil(value) or value == ""
@@ -104,6 +106,7 @@ defmodule LivePhone do
           get_name_fn={@get_name_fn}
           id={@id}
           target={@myself}
+          allowed_countries={@allowed_countries}
         />
       <% end %>
     </div>
@@ -353,7 +356,19 @@ defmodule LivePhone do
         assigns
       end
 
-    assigns = assign_new(assigns, :countries, fn -> Country.list(assigns[:preferred]) end)
+    maybe_filter_allowed_countries =
+      if assigns[:allowed_countries] do
+        allowed_countries = prepare_allowed_countries(assigns[:allowed_countries])
+
+        fn countries -> Enum.filter(countries, &(&1.code in allowed_countries)) end
+      else
+        &Function.identity/1
+      end
+
+    assigns =
+      assign_new(assigns, :countries, fn ->
+        assigns[:preferred] |> Country.list() |> IO.inspect() |> maybe_filter_allowed_countries.()
+      end)
 
     assigns =
       assign_new(assigns, :last_preferred, fn ->
@@ -430,4 +445,14 @@ defmodule LivePhone do
     </li>
     """
   end
+
+  defp prepare_allowed_countries([_code | _rest] = allowed_countries) do
+    if "PS" in allowed_countries do
+      ["IL" | allowed_countries]
+    else
+      allowed_countries
+    end
+  end
+
+  defp prepare_allowed_countries(allowed_countries), do: allowed_countries
 end
