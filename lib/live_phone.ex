@@ -367,7 +367,7 @@ defmodule LivePhone do
 
     assigns =
       assign_new(assigns, :countries, fn ->
-        assigns[:preferred] |> Country.list() |> IO.inspect() |> maybe_filter_allowed_countries.()
+        assigns[:preferred] |> Country.list() |> maybe_filter_allowed_countries.()
       end)
 
     assigns =
